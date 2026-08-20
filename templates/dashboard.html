@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<p class="mb">Resumen del aula virtual.</p>
+
+<div class="stats">
+    <div class="stat-box">
+        <h3 id="s1">-</h3>
+        <p>Cursos</p>
+    </div>
+    <div class="stat-box">
+        <h3 id="s2">-</h3>
+        <p>Estudiantes</p>
+    </div>
+    <div class="stat-box">
+        <h3 id="s3">-</h3>
+        <p>Contenidos</p>
+    </div>
+    <div class="stat-box">
+        <h3 id="s4">-</h3>
+        <p>Evaluaciones</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function() {
+    const c = await api('/courses');
+    if (c) document.getElementById('s1').textContent = (c.courses || c || []).length;
+    const s = await api('/students');
+    if (s) document.getElementById('s2').textContent = (s.students || s || []).length;
+    const ct = await api('/content');
+    if (ct) document.getElementById('s3').textContent = (ct.contents || ct || []).length;
+    const e = await api('/evaluations');
+    if (e) document.getElementById('s4').textContent = (e.evaluations || e || []).length;
+})();
+</script>
+{% endblock %}

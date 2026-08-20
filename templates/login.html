@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Aula Virtual</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-box">
+        <h1>Aula Virtual</h1>
+        <p>Inicia sesion para continuar</p>
+
+        <div id="alerts"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" required placeholder="tu@email.com">
+            </div>
+            <div class="form-group">
+                <label>Contrasena</label>
+                <input type="password" id="password" required placeholder="Tu contrasena">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Iniciar Sesion</button>
+        </form>
+
+        <p class="text-center mt">
+            No tienes cuenta? <a href="/register">Registrate</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/dashboard';
+            } else {
+                const d = document.createElement('div');
+                d.className = 'msg msg-error';
+                d.textContent = data.message || 'Error al iniciar sesion';
+                document.getElementById('alerts').appendChild(d);
+            }
+        };
+    </script>
+</body>
+</html>

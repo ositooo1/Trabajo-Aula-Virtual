@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Contenidos{% endblock %}
+
+{% block content %}
+<div class="flex mb">
+    <h1 style="flex:1">Contenidos</h1>
+    <button class="btn btn-primary" onclick="crear()">+ Nuevo Contenido</button>
+</div>
+
+<div id="lista"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let contenidos = [];
+let cursos = [];
+
+async function cargar() {
+    const data = await api('/content');
+    contenidos = data ? (data.contents || data || []) : [];
+    const cData = await api('/courses');
+    cursos = cData ? (cData.courses || cData || []) : [];
+    mostrar();
+}
+
+function mostrar() {
+    const el = document.getElementById('lista');
+    if (!contenidos.length) { el.innerHTML = '<p>No hay contenidos.</p>'; return; }
+    el.innerHTML = contenidos.map(c => `
+        <div class="content-item">
+            <div class="info">
+                <h4>${c.title}</h4>
+                <p>${c.course_name || ''} | ${c.type || ''} | ${c.description || ''}</p>
+            </div>
+            <div>
+                <button class="btn btn-secondary btn-small" onclick="editar(${c.id})">Editar</button>
+                <button class="btn btn-danger btn-small" onclick="eliminar(${c.id})">Eliminar</button>
+            </div>
+        </div>`).join('');
+}
+
+function optsCourses(selected) {
+    return '<option value="">Seleccionar curso...</option>' +
+        cursos.map(c => `<option value="${c.id}" ${selected == c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+}
+
+function form(c) {
+    return `
+        <div class="form-group"><label>Titulo *</label><input id="fTitle" value="${c ? c.title : ''}"></div>
+        <div class="form-group"><label>Tipo *</label>
+            <select id="fType">
+                <option value="">Seleccionar...</option>
+                <option value="pdf" ${c && c.type === 'pdf' ? 'selected' : ''}>PDF</option>
+                <option value="video" ${c && c.type === 'video' ? 'selected' : ''}>Video</option>
+                <option value="document" ${c && c.type === 'document' ? 'selected' : ''}>Documento</option>
+                <option value="link" ${c && c.type === 'link' ? 'selected' : ''}>Enlace</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Curso *</label><select id="fCourse">${optsCourses(c ? c.course_id : '')}</select></div>
+        <div class="form-group"><label>URL</label><input id="fUrl" value="${c ? c.url || '' : ''}"></div>
+        <div class="form-group"><label>Descripcion</label><textarea id="fDesc">${c ? c.description || '' : ''}</textarea></div>
+        <button class="btn btn-primary" onclick="guardar(${c ? c.id : 0})">Guardar</button>`;
+}
+
+function crear() { showModal('Nuevo Contenido', form(null)); }
+
+function editar(id) {
+    const c = contenidos.find(x => x.id === id);
+    showModal('Editar Contenido', form(c));
+}
+
+async function guardar(id) {
+    const datos = {
+        title: document.getElementById('fTitle').value,
+        type: document.getElementById('fType').value,
+        course_id: document.getElementById('fCourse').value,
+        url: document.getElementById('fUrl').value,
+        description: document.getElementById('fDesc').value
+    };
+    if (!datos.title || !datos.type || !datos.course_id) { showAlert('Titulo, tipo y curso son obligatorios', 'error'); return; }
+    if (id) await api('/content/' + id, 'PUT', datos);
+    else await api('/content', 'POST', datos);
+    closeModal();
+    cargar();
+}
+
+async function eliminar(id) {
+    if (!confirm('Eliminar este contenido?')) return;
+    await api('/content/' + id, 'DELETE');
+    cargar();
+}
+
+cargar();
+</script>
+{% endblock %}

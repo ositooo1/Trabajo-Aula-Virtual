@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Estudiantes{% endblock %}
+
+{% block content %}
+<div class="flex mb">
+    <h1 style="flex:1">Estudiantes</h1>
+    <button class="btn btn-primary" onclick="crear()">+ Nuevo Estudiante</button>
+</div>
+
+<div id="lista"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let estudiantes = [];
+let cursos = [];
+
+async function cargar() {
+    const data = await api('/students');
+    estudiantes = data ? (data.students || data || []) : [];
+    const cData = await api('/courses');
+    cursos = cData ? (cData.courses || cData || []) : [];
+    mostrar();
+}
+
+function mostrar() {
+    const el = document.getElementById('lista');
+    if (!estudiantes.length) { el.innerHTML = '<p>No hay estudiantes.</p>'; return; }
+    el.innerHTML = '<table><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Curso</th><th>Legajo</th><th>Acciones</th></tr>' +
+        estudiantes.map(s => `<tr>
+            <td>${s.id}</td>
+            <td>${s.name}</td>
+            <td>${s.email || '-'}</td>
+            <td>${s.course_name || '-'}</td>
+            <td>${s.file_number || '-'}</td>
+            <td>
+                <button class="btn btn-secondary btn-small" onclick="editar(${s.id})">Editar</button>
+                <button class="btn btn-danger btn-small" onclick="eliminar(${s.id})">Eliminar</button>
+            </td>
+        </tr>`).join('') + '</table>';
+}
+
+function optsCourses(selected) {
+    return '<option value="">Seleccionar curso...</option>' +
+        cursos.map(c => `<option value="${c.id}" ${selected == c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+}
+
+function form(s) {
+    return `
+        <div class="form-group"><label>Nombre *</label><input id="fName" value="${s ? s.name : ''}"></div>
+        <div class="form-group"><label>Email</label><input id="fEmail" type="email" value="${s ? s.email || '' : ''}"></div>
+        <div class="form-group"><label>Legajo</label><input id="fFile" value="${s ? s.file_number || '' : ''}"></div>
+        <div class="form-group"><label>Curso *</label><select id="fCourse">${optsCourses(s ? s.course_id : '')}</select></div>
+        <button class="btn btn-primary" onclick="guardar(${s ? s.id : 0})">Guardar</button>`;
+}
+
+function crear() { showModal('Nuevo Estudiante', form(null)); }
+
+function editar(id) {
+    const s = estudiantes.find(x => x.id === id);
+    showModal('Editar Estudiante', form(s));
+}
+
+async function guardar(id) {
+    const datos = {
+        name: document.getElementById('fName').value,
+        email: document.getElementById('fEmail').value,
+        file_number: document.getElementById('fFile').value,
+        course_id: document.getElementById('fCourse').value
+    };
+    if (!datos.name || !datos.course_id) { showAlert('Nombre y curso son obligatorios', 'error'); return; }
+    if (id) await api('/students/' + id, 'PUT', datos);
+    else await api('/students', 'POST', datos);
+    closeModal();
+    cargar();
+}
+
+async function eliminar(id) {
+    if (!confirm('Eliminar este estudiante?')) return;
+    await api('/students/' + id, 'DELETE');
+    cargar();
+}
+
+cargar();
+</script>
+{% endblock %}

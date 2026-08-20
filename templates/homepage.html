@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Inicio - Aula Virtual{% endblock %}
+
+{% block content %}
+<h1>Mis Cursos</h1>
+<p class="mb">Selecciona un grado para ver sus divisiones.</p>
+
+<div id="grados"></div>
+
+<div id="divisiones" style="display:none">
+    <div class="flex mb">
+        <button class="btn btn-secondary" onclick="volver()">&#8592; Volver</button>
+        <h2 id="gradoTitle" style="flex:1"></h2>
+    </div>
+    <div id="divList"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const divisiones = {
+    1: ['A', 'B'],
+    2: ['A', 'B'],
+    3: ['A', 'B'],
+    4: ['A', 'B'],
+    5: ['A', 'B'],
+    6: ['P', 'M'],
+    7: ['A', 'B']
+};
+
+const nombres = ['Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 'Sexto', 'Septimo'];
+
+function mostrarGrados() {
+    document.getElementById('grados').style.display = 'block';
+    document.getElementById('divisiones').style.display = 'none';
+
+    let html = '<div class="grid">';
+    for (let i = 1; i <= 7; i++) {
+        html += `<div class="card" style="cursor:pointer;text-align:center;padding:30px" onclick="verDivisiones(${i})">
+            <h2 style="margin-bottom:5px">${nombres[i-1]}</h2>
+            <p style="color:#666">${divisiones[i].length} divisiones</p>
+        </div>`;
+    }
+    html += '</div>';
+    document.getElementById('grados').innerHTML = html;
+}
+
+function verDivisiones(grado) {
+    document.getElementById('grados').style.display = 'none';
+    document.getElementById('divisiones').style.display = 'block';
+    document.getElementById('gradoTitle').textContent = nombres[grado-1] + ' Grado';
+
+    let html = '<div class="grid">';
+    divisiones[grado].forEach(div => {
+        html += `<div class="card" style="text-align:center;padding:30px">
+            <h2 style="margin-bottom:5px">${nombres[grado-1]} ${div}</h2>
+            <p style="color:#666;margin-bottom:15px">Curso completo</p>
+            <a href="/courses?grade=${grado}&div=${div}" class="btn btn-primary">Entrar</a>
+        </div>`;
+    });
+    html += '</div>';
+    document.getElementById('divList').innerHTML = html;
+}
+
+function volver() {
+    mostrarGrados();
+}
+
+mostrarGrados();
+</script>
+{% endblock %}

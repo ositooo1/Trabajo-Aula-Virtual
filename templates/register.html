@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Aula Virtual</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-box">
+        <h1>Aula Virtual</h1>
+        <p>Crea tu cuenta</p>
+
+        <div id="alerts"></div>
+
+        <form id="registerForm">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="username" required placeholder="Tu nombre">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" required placeholder="tu@email.com">
+            </div>
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="role" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="estudiante">Estudiante</option>
+                    <option value="profesor">Profesor</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Contrasena</label>
+                <input type="password" id="password" required placeholder="Minimo 6 caracteres">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Crear Cuenta</button>
+        </form>
+
+        <p class="text-center mt">
+            Ya tienes cuenta? <a href="/login">Inicia sesion</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    email: document.getElementById('email').value,
+                    role: document.getElementById('role').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                window.location.href = '/login';
+            } else {
+                const d = document.createElement('div');
+                d.className = 'msg msg-error';
+                d.textContent = data.message || 'Error al registrar';
+                document.getElementById('alerts').appendChild(d);
+            }
+        };
+    </script>
+</body>
+</html>

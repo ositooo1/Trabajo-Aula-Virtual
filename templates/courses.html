@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Cursos{% endblock %}
+
+{% block content %}
+<div class="flex mb">
+    <h1 style="flex:1">Cursos</h1>
+    <button class="btn btn-primary" onclick="crear()">+ Nuevo Curso</button>
+</div>
+
+<div id="lista"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cursos = [];
+
+async function cargar() {
+    const data = await api('/courses');
+    cursos = data ? (data.courses || data || []) : [];
+    mostrar();
+}
+
+function mostrar() {
+    const el = document.getElementById('lista');
+    if (!cursos.length) { el.innerHTML = '<p>No hay cursos.</p>'; return; }
+    el.innerHTML = '<table><tr><th>ID</th><th>Nombre</th><th>Codigo</th><th>Profesor</th><th>Estado</th><th>Acciones</th></tr>' +
+        cursos.map(c => `<tr>
+            <td>${c.id}</td>
+            <td>${c.name}</td>
+            <td>${c.code || '-'}</td>
+            <td>${c.teacher || '-'}</td>
+            <td>${c.status === 'active' ? 'Activo' : 'Inactivo'}</td>
+            <td>
+                <button class="btn btn-secondary btn-small" onclick="editar(${c.id})">Editar</button>
+                <button class="btn btn-danger btn-small" onclick="eliminar(${c.id})">Eliminar</button>
+            </td>
+        </tr>`).join('') + '</table>';
+}
+
+function form(c) {
+    return `
+        <div class="form-group"><label>Nombre *</label><input id="fName" value="${c ? c.name : ''}"></div>
+        <div class="form-group"><label>Codigo</label><input id="fCode" value="${c ? c.code || '' : ''}"></div>
+        <div class="form-group"><label>Profesor</label><input id="fTeacher" value="${c ? c.teacher || '' : ''}"></div>
+        <div class="form-group"><label>Descripcion</label><textarea id="fDesc">${c ? c.description || '' : ''}</textarea></div>
+        <div class="form-group"><label>Estado</label>
+            <select id="fStatus">
+                <option value="active" ${c && c.status === 'active' ? 'selected' : ''}>Activo</option>
+                <option value="inactive" ${c && c.status === 'inactive' ? 'selected' : ''}>Inactivo</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="guardar(${c ? c.id : 0})">Guardar</button>`;
+}
+
+function crear() { showModal('Nuevo Curso', form(null)); }
+
+function editar(id) {
+    const c = cursos.find(x => x.id === id);
+    showModal('Editar Curso', form(c));
+}
+
+async function guardar(id) {
+    const datos = {
+        name: document.getElementById('fName').value,
+        code: document.getElementById('fCode').value,
+        teacher: document.getElementById('fTeacher').value,
+        description: document.getElementById('fDesc').value,
+        status: document.getElementById('fStatus').value
+    };
+    if (!datos.name) { showAlert('El nombre es obligatorio', 'error'); return; }
+    if (id) await api('/courses/' + id, 'PUT', datos);
+    else await api('/courses', 'POST', datos);
+    closeModal();
+    cargar();
+}
+
+async function eliminar(id) {
+    if (!confirm('Eliminar este curso?')) return;
+    await api('/courses/' + id, 'DELETE');
+    cargar();
+}
+
+cargar();
+</script>
+{% endblock %}

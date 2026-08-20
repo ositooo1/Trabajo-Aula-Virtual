@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Aula Virtual{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app">
+        <div class="sidebar">
+            <h2>Aula Virtual</h2>
+            <a href="/">Inicio</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/courses">Cursos</a>
+            <a href="/students">Estudiantes</a>
+            <a href="/content">Contenidos</a>
+            <a href="/evaluations">Evaluaciones</a>
+            <div class="user-section">
+                <span id="userName">Usuario</span>
+                <a href="#" onclick="logout()">Cerrar sesion</a>
+            </div>
+        </div>
+
+        <div class="main">
+            <div id="alerts"></div>
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        const u = user;
+        if (u) document.getElementById('userName').textContent = u.username || 'Usuario';
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
