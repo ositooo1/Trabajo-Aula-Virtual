@@ -40,7 +40,14 @@ class Usuario(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     activo = db.Column(db.Boolean, default=True)
     rol = db.relationship("Rol")
+    
+class Curso(db.Model):
+    __tablename__ = "cursos"
 
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(150), nullable=False)
+    descripcion = db.Column(db.Text)
+    activo = db.Column(db.Boolean, default=True)
 
 
 
@@ -154,31 +161,62 @@ def api_register():
 @app.route("/api/courses", methods=["GET", "POST"])
 def api_courses():
     if request.method == "GET":
-        return jsonify({"courses": load_data("courses")})
+        cursos = Curso.query.all()
+        return jsonify({
+            "courses": [
+                {
+                    "id": c.id,
+                    "name": c.nombre,
+                    "description": c.descripcion,
+                    "status": "active" if c.activo else "inactive",
+                }
+                for c in cursos
+            ]
+        })
+
     data = request.get_json()
-    courses = load_data("courses")
-    new_id = max([c["id"] for c in courses], default=0) + 1
-    data["id"] = new_id
-    data["status"] = data.get("status", "active")
-    courses.append(data)
-    save_data("courses", courses)
-    return jsonify(data), 201
+    nuevo_curso = Curso(
+        nombre=data.get("name", ""),
+        descripcion=data.get("description", ""),
+        activo=True,
+    )
+    db.session.add(nuevo_curso)
+    db.session.commit()
+
+    return jsonify({
+        "id": nuevo_curso.id,
+        "name": nuevo_curso.nombre,
+        "description": nuevo_curso.descripcion,
+        "status": "active",
+    }), 201
 
 
 @app.route("/api/courses/<int:cid>", methods=["PUT", "DELETE"])
 def api_course(cid):
-    courses = load_data("courses")
+    curso = Curso.query.get(cid)
+    if curso is None:
+        return jsonify({"message": "No encontrado"}), 404
+
     if request.method == "DELETE":
-        courses = [c for c in courses if c["id"] != cid]
-        save_data("courses", courses)
+        db.session.delete(curso)
+        db.session.commit()
         return jsonify({"message": "Eliminado"})
+
     data = request.get_json()
-    for c in courses:
-        if c["id"] == cid:
-            c.update(data)
-            save_data("courses", courses)
-            return jsonify(c)
-    return jsonify({"message": "No encontrado"}), 404
+    if "name" in data:
+        curso.nombre = data.get("name")
+    if "description" in data:
+        curso.descripcion = data.get("description")
+    if "status" in data:
+        curso.activo = data.get("status") == "active"
+
+    db.session.commit()
+    return jsonify({
+        "id": curso.id,
+        "name": curso.nombre,
+        "description": curso.descripcion,
+        "status": "active" if curso.activo else "inactive",
+    })
 
 
 @app.route("/api/students", methods=["GET", "POST"])
