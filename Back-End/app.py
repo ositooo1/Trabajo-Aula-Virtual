@@ -47,6 +47,8 @@ class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
+    codigo = db.Column(db.String(20))
+    profesor = db.Column(db.String(150))
     activo = db.Column(db.Boolean, default=True)
 
 
@@ -168,6 +170,8 @@ def api_courses():
                     "id": c.id,
                     "name": c.nombre,
                     "description": c.descripcion,
+                    "code": c.codigo,
+                    "teacher": c.profesor,
                     "status": "active" if c.activo else "inactive",
                 }
                 for c in cursos
@@ -178,7 +182,9 @@ def api_courses():
     nuevo_curso = Curso(
         nombre=data.get("name", ""),
         descripcion=data.get("description", ""),
-        activo=True,
+        codigo=data.get("code", ""),
+        profesor=data.get("teacher", ""),
+        activo=data.get("status", "active") == "active",
     )
     db.session.add(nuevo_curso)
     db.session.commit()
@@ -187,7 +193,9 @@ def api_courses():
         "id": nuevo_curso.id,
         "name": nuevo_curso.nombre,
         "description": nuevo_curso.descripcion,
-        "status": "active",
+        "code": nuevo_curso.codigo,
+        "teacher": nuevo_curso.profesor,
+        "status": "active" if nuevo_curso.activo else "inactive",
     }), 201
 
 
