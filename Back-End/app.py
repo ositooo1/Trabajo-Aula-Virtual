@@ -1,8 +1,10 @@
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta Back-End
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONT_END_DIR = os.path.join(BASE_DIR, "..", "Front-End")
 
 app = Flask(
@@ -11,6 +13,37 @@ app = Flask(
     static_folder=os.path.join(FRONT_END_DIR, "static"),
 )
 app.secret_key = "aula-virtual-secret"
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    "mysql+pymysql://root:@127.0.0.1:3306/aula_virtual"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+class Rol(db.Model):
+    __tablename__ = "roles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(30), unique=True, nullable=False)
+    
+
+
+class Usuario(db.Model):
+    __tablename__ = "usuarios"
+
+    id = db.Column(db.Integer, primary_key=True)
+    rol_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False)
+    nombre = db.Column(db.String(100), nullable=False)
+    apellido = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    activo = db.Column(db.Boolean, default=True)
+    rol = db.relationship("Rol")
+
+
+
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -73,40 +106,48 @@ def evaluations():
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.get_json()
-    users = load_data("users")
-    for u in users:
-        if u["email"] == data.get("email") and u["password"] == data.get("password"):
-            return jsonify(
-                {
-                    "token": "tok_" + u["email"],
-                    "user": {
-                        "id": u["id"],
-                        "username": u["username"],
-                        "role": u["role"],
-                    },
-                }
-            )
+
+    usuario = Usuario.query.filter_by(email=data.get("email")).first()
+
+    if usuario and check_password_hash(usuario.password_hash, data.get("password", "")):
+        return jsonify(
+            {
+                "token": "tok_" + usuario.email,
+                "user": {
+                    "id": usuario.id,
+                    "username": usuario.nombre,
+                    "role": usuario.rol.nombre,
+                },
+            }
+        )
+
     return jsonify({"message": "Email o contrasena incorrectos"}), 401
 
 
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json()
-    users = load_data("users")
-    for u in users:
-        if u["email"] == data.get("email"):
-            return jsonify({"message": "El email ya esta registrado"}), 400
-    new_id = max([u["id"] for u in users], default=0) + 1
-    users.append(
-        {
-            "id": new_id,
-            "username": data.get("username", ""),
-            "email": data.get("email", ""),
-            "password": data.get("password", ""),
-            "role": data.get("role", "estudiante"),
-        }
+
+    if Usuario.query.filter_by(email=data.get("email")).first():
+        return jsonify({"message": "El email ya esta registrado"}), 400
+
+    nombre_rol = data.get("role", "estudiante")
+    rol = Rol.query.filter_by(nombre=nombre_rol).first()
+    if rol is None:
+        rol = Rol(nombre=nombre_rol)
+        db.session.add(rol)
+        db.session.commit()
+
+    nuevo_usuario = Usuario(
+        nombre=data.get("username", ""),
+        apellido="",
+        email=data.get("email", ""),
+        password_hash=generate_password_hash(data.get("password", "")),  # ojo, esto lo mejoramos en el próximo paso
+        rol_id=rol.id,
     )
-    save_data("users", users)
+    db.session.add(nuevo_usuario)
+    db.session.commit()
+
     return jsonify({"message": "Registro exitoso"}), 201
 
 
@@ -232,4 +273,8 @@ if __name__ == "__main__":
     for name in ["users", "courses", "students", "content", "evaluations"]:
         if not os.path.exists(os.path.join(DATA_DIR, f"{name}.json")):
             save_data(name, [])
-    app.run(debug=True)
+    with app.app_context():
+        usuarios = Usuario.query.all()      
+        print(f"Encontré {len(usuarios)} usuarios en la base")
+    app.run(debug=True)                           
+    
