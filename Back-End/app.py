@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import json
 import os
 
@@ -51,7 +52,25 @@ class Curso(db.Model):
     profesor = db.Column(db.String(150))
     activo = db.Column(db.Boolean, default=True)
 
+def requiere_login(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"message": "No autorizado"}), 401
 
+        token = auth_header.replace("Bearer ", "")
+        if not token.startswith("tok_"):
+            return jsonify({"message": "No autorizado"}), 401
+
+        email = token.replace("tok_", "", 1)
+        usuario = Usuario.query.filter_by(email=email).first()
+        if usuario is None:
+            return jsonify({"message": "No autorizado"}), 401
+
+        request.usuario_actual = usuario
+        return f(*args, **kwargs)
+    return wrapper
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -161,6 +180,7 @@ def api_register():
 
 
 @app.route("/api/courses", methods=["GET", "POST"])
+@requiere_login
 def api_courses():
     if request.method == "GET":
         cursos = Curso.query.all()
@@ -200,6 +220,7 @@ def api_courses():
 
 
 @app.route("/api/courses/<int:cid>", methods=["PUT", "DELETE"])
+@requiere_login
 def api_course(cid):
     curso = Curso.query.get(cid)
     if curso is None:
@@ -215,6 +236,10 @@ def api_course(cid):
         curso.nombre = data.get("name")
     if "description" in data:
         curso.descripcion = data.get("description")
+    if "code" in data:
+        curso.codigo = data.get("code")
+    if "teacher" in data:
+        curso.profesor = data.get("teacher")
     if "status" in data:
         curso.activo = data.get("status") == "active"
 
@@ -223,11 +248,14 @@ def api_course(cid):
         "id": curso.id,
         "name": curso.nombre,
         "description": curso.descripcion,
+        "code": curso.codigo,
+        "teacher": curso.profesor,
         "status": "active" if curso.activo else "inactive",
     })
 
 
 @app.route("/api/students", methods=["GET", "POST"])
+@requiere_login
 def api_students():
     if request.method == "GET":
         return jsonify({"students": load_data("students")})
@@ -241,6 +269,7 @@ def api_students():
 
 
 @app.route("/api/students/<int:sid>", methods=["PUT", "DELETE"])
+@requiere_login
 def api_student(sid):
     students = load_data("students")
     if request.method == "DELETE":
@@ -257,6 +286,7 @@ def api_student(sid):
 
 
 @app.route("/api/content", methods=["GET", "POST"])
+@requiere_login
 def api_content():
     if request.method == "GET":
         return jsonify({"contents": load_data("content")})
@@ -270,6 +300,7 @@ def api_content():
 
 
 @app.route("/api/content/<int:cid>", methods=["PUT", "DELETE"])
+@requiere_login
 def api_content_item(cid):
     contents = load_data("content")
     if request.method == "DELETE":
@@ -286,6 +317,7 @@ def api_content_item(cid):
 
 
 @app.route("/api/evaluations", methods=["GET", "POST"])
+@requiere_login
 def api_evaluations():
     if request.method == "GET":
         return jsonify({"evaluations": load_data("evaluations")})
@@ -299,6 +331,7 @@ def api_evaluations():
 
 
 @app.route("/api/evaluations/<int:eid>", methods=["PUT", "DELETE"])
+@requiere_login
 def api_evaluation(eid):
     evaluations = load_data("evaluations")
     if request.method == "DELETE":
