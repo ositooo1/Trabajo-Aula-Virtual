@@ -1,85 +1,673 @@
 {% extends "base.html" %}
-{% block title %}Cursos{% endblock %}
 
-{% block content %}
-<div class="flex mb">
-    <h1 style="flex:1">Cursos</h1>
-    <button class="btn btn-primary" onclick="crear()">+ Nuevo Curso</button>
-</div>
-
-<div id="lista"></div>
+{% block title %}
+Curso - Aula Virtual
 {% endblock %}
 
-{% block scripts %}
-<script>
-let cursos = [];
 
-async function cargar() {
-    const data = await api('/courses');
-    cursos = data ? (data.courses || data || []) : [];
-    mostrar();
-}
+{% block content %}
 
-function mostrar() {
-    const el = document.getElementById('lista');
-    if (!cursos.length) { el.innerHTML = '<p>No hay cursos.</p>'; return; }
-    el.innerHTML = '<table><tr><th>ID</th><th>Nombre</th><th>Codigo</th><th>Profesor</th><th>Estado</th><th>Acciones</th></tr>' +
-        cursos.map(c => `<tr>
-            <td>${c.id}</td>
-            <td>${c.name}</td>
-            <td>${c.code || '-'}</td>
-            <td>${c.teacher || '-'}</td>
-            <td>${c.status === 'active' ? 'Activo' : 'Inactivo'}</td>
-            <td>
-                <button class="btn btn-secondary btn-small" onclick="editar(${c.id})">Editar</button>
-                <button class="btn btn-danger btn-small" onclick="eliminar(${c.id})">Eliminar</button>
-            </td>
-        </tr>`).join('') + '</table>';
-}
 
-function form(c) {
-    return `
-        <div class="form-group"><label>Nombre *</label><input id="fName" value="${c ? c.name : ''}"></div>
-        <div class="form-group"><label>Codigo</label><input id="fCode" value="${c ? c.code || '' : ''}"></div>
-        <div class="form-group"><label>Profesor</label><input id="fTeacher" value="${c ? c.teacher || '' : ''}"></div>
-        <div class="form-group"><label>Descripcion</label><textarea id="fDesc">${c ? c.description || '' : ''}</textarea></div>
-        <div class="form-group"><label>Estado</label>
-            <select id="fStatus">
-                <option value="active" ${c && c.status === 'active' ? 'selected' : ''}>Activo</option>
-                <option value="inactive" ${c && c.status === 'inactive' ? 'selected' : ''}>Inactivo</option>
-            </select>
+<!-- =====================================================
+    CARGANDO
+====================================================== -->
+
+<div
+    id="courseLoading"
+    class="surface p-5 text-center"
+>
+
+    <div
+        class="spinner-border text-success mb-3"
+        role="status"
+    >
+        <span class="visually-hidden">
+            Cargando...
+        </span>
+    </div>
+
+    <p class="mb-0">
+        Cargando curso...
+    </p>
+
+</div>
+
+
+
+<!-- =====================================================
+     CONTENIDO DEL CURSO
+====================================================== -->
+
+<section
+    id="courseContent"
+    class="d-none"
+>
+
+
+    <!-- VOLVER -->
+
+    <div class="mb-3">
+
+        <a
+            href="/courses"
+            class="text-decoration-none"
+        >
+            ← Volver a Mis Cursos
+        </a>
+
+    </div>
+
+
+
+    <!-- =================================================
+         CABECERA
+    ================================================== -->
+
+    <div class="surface p-4 p-md-5 mb-4">
+
+        <div
+            class="
+                d-flex
+                flex-column
+                flex-lg-row
+                justify-content-between
+                align-items-lg-start
+                gap-3
+            "
+        >
+
+            <div>
+
+                <span
+                    id="courseRole"
+                    class="role-badge"
+                >
+                </span>
+
+
+                <h1
+                    id="courseTitle"
+                    class="mt-3 mb-2"
+                >
+                </h1>
+
+
+                <p
+                    id="courseDescription"
+                    class="mb-0"
+                    style="max-width: 750px;"
+                >
+                </p>
+
+            </div>
+
+
+            <!-- INFORMACIÓN SOLO DOCENTE -->
+
+            <div
+                id="teacherInfo"
+                class="d-none"
+            >
+
+                <div
+                    class="
+                        p-3
+                        rounded-3
+                        text-center
+                    "
+                    style="
+                        background: var(--green-light);
+                        min-width: 220px;
+                    "
+                >
+
+                    <small
+                        class="d-block mb-1"
+                        style="
+                            color: var(--text-secondary);
+                        "
+                    >
+                        Código para unirse
+                    </small>
+
+
+                    <div
+                        class="
+                            d-flex
+                            align-items-center
+                            justify-content-center
+                            gap-2
+                        "
+                    >
+
+                        <strong
+                            id="courseCode"
+                            style="
+                                font-size: 1.4rem;
+                                letter-spacing: 2px;
+                            "
+                        >
+                        </strong>
+
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-success"
+                            onclick="copyCourseCode()"
+                        >
+                            Copiar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
-        <button class="btn btn-primary" onclick="guardar(${c ? c.id : 0})">Guardar</button>`;
+
+    </div>
+
+
+
+    <!-- =================================================
+         RESUMEN DOCENTE
+    ================================================== -->
+
+    <div
+        id="teacherStats"
+        class="row g-3 mb-4 d-none"
+    >
+
+        <div class="col-12 col-sm-6 col-lg-4">
+
+            <div class="surface p-4">
+
+                <p class="mb-1">
+                    Estudiantes
+                </p>
+
+
+                <h2
+                    id="studentCount"
+                    class="mb-0"
+                >
+                    0
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =================================================
+         NAVEGACIÓN DEL CURSO
+    ================================================== -->
+
+    <div class="surface p-3 p-md-4">
+
+        <ul
+            class="nav nav-tabs mb-4"
+            id="courseTabs"
+            role="tablist"
+        >
+
+
+            <!-- CONTENIDOS -->
+
+            <li
+                class="nav-item"
+                role="presentation"
+            >
+
+                <button
+                    class="nav-link active"
+                    id="contents-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#contentsPane"
+                    type="button"
+                    role="tab"
+                >
+                    Contenidos
+                </button>
+
+            </li>
+
+
+
+            <!-- ESTUDIANTES -->
+
+            <li
+                class="nav-item d-none"
+                id="studentsTabItem"
+                role="presentation"
+            >
+
+                <button
+                    class="nav-link"
+                    id="students-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#studentsPane"
+                    type="button"
+                    role="tab"
+                >
+                    Estudiantes
+                </button>
+
+            </li>
+
+
+
+            <!-- EVALUACIONES -->
+
+            <li
+                class="nav-item"
+                role="presentation"
+            >
+
+                <button
+                    class="nav-link"
+                    id="evaluations-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#evaluationsPane"
+                    type="button"
+                    role="tab"
+                >
+                    Evaluaciones
+                </button>
+
+            </li>
+
+        </ul>
+
+
+
+        <!-- =================================================
+             CONTENIDO DE LAS PESTAÑAS
+        ================================================== -->
+
+        <div
+            class="tab-content"
+            id="courseTabsContent"
+        >
+
+
+            <!-- CONTENIDOS -->
+
+            <div
+                class="tab-pane fade show active"
+                id="contentsPane"
+                role="tabpanel"
+            >
+
+                <div class="py-4">
+
+                    <h3 class="h5 mb-2">
+                        Contenidos del curso
+                    </h3>
+
+
+                    <p class="mb-0">
+
+                        En esta sección se organizarán
+                        los materiales y recursos
+                        publicados para el curso.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ESTUDIANTES -->
+
+            <div
+                class="tab-pane fade"
+                id="studentsPane"
+                role="tabpanel"
+            >
+
+                <div class="py-4">
+
+                    <h3 class="h5 mb-2">
+                        Estudiantes
+                    </h3>
+
+
+                    <p class="mb-0">
+
+                        Desde esta sección el docente
+                        podrá consultar los estudiantes
+                        inscriptos en el curso.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- EVALUACIONES -->
+
+            <div
+                class="tab-pane fade"
+                id="evaluationsPane"
+                role="tabpanel"
+            >
+
+                <div class="py-4">
+
+                    <h3 class="h5 mb-2">
+                        Evaluaciones
+                    </h3>
+
+
+                    <p class="mb-0">
+
+                        En esta sección se organizarán
+                        las evaluaciones correspondientes
+                        al curso.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+</section>
+
+{% endblock %}
+
+
+
+{% block scripts %}
+
+<script>
+
+
+/* =========================================================
+   ID DEL CURSO
+========================================================= */
+
+const COURSE_ID =
+    {{ course_id | tojson }};
+
+
+/* =========================================================
+   CARGAR CURSO
+========================================================= */
+
+async function loadCourse() {
+
+
+    /*
+        Si alguien entra directamente
+        sin sesión, lo mandamos al login.
+    */
+
+    if (
+        !getToken() ||
+        !getUser()
+    ) {
+
+        window.location.href =
+            '/login';
+
+        return;
+
+    }
+
+
+    const data =
+        await api(
+            `/courses/${COURSE_ID}`
+        );
+
+
+    if (!data) {
+
+        document
+            .getElementById('courseLoading')
+            .classList.add('d-none');
+
+        return;
+
+    }
+
+
+    renderCourse(
+        data.course
+    );
+
 }
 
-function crear() { showModal('Nuevo Curso', form(null)); }
 
-function editar(id) {
-    const c = cursos.find(x => x.id === id);
-    showModal('Editar Curso', form(c));
+/* =========================================================
+   MOSTRAR INFORMACIÓN
+========================================================= */
+
+function renderCourse(course) {
+
+
+    const loading =
+        document.getElementById(
+            'courseLoading'
+        );
+
+
+    const content =
+        document.getElementById(
+            'courseContent'
+        );
+
+
+    loading.classList.add(
+        'd-none'
+    );
+
+
+    content.classList.remove(
+        'd-none'
+    );
+
+
+    /* -------------------------
+       NOMBRE
+    -------------------------- */
+
+    document
+        .getElementById('courseTitle')
+        .textContent =
+        course.name;
+
+
+    /* -------------------------
+       DESCRIPCIÓN
+    -------------------------- */
+
+    document
+        .getElementById('courseDescription')
+        .textContent =
+        course.description ||
+        'Sin descripción.';
+
+
+    /* -------------------------
+       ROL
+    -------------------------- */
+
+    const role =
+        document.getElementById(
+            'courseRole'
+        );
+
+
+    if (course.role === 'docente') {
+
+
+        role.textContent =
+            'Docente';
+
+
+        role.classList.add(
+            'role-teacher'
+        );
+
+
+        showTeacherOptions(
+            course
+        );
+
+
+    } else {
+
+
+        role.textContent =
+            'Estudiante';
+
+
+        role.classList.add(
+            'role-student'
+        );
+
+    }
+
 }
 
-async function guardar(id) {
-    const datos = {
-        name: document.getElementById('fName').value,
-        code: document.getElementById('fCode').value,
-        teacher: document.getElementById('fTeacher').value,
-        description: document.getElementById('fDesc').value,
-        status: document.getElementById('fStatus').value
-    };
-    if (!datos.name) { showAlert('El nombre es obligatorio', 'error'); return; }
-    if (id) await api('/courses/' + id, 'PUT', datos);
-    else await api('/courses', 'POST', datos);
-    closeModal();
-    cargar();
+
+/* =========================================================
+   OPCIONES DEL DOCENTE
+========================================================= */
+
+function showTeacherOptions(course) {
+
+
+    const teacherInfo =
+        document.getElementById(
+            'teacherInfo'
+        );
+
+
+    const teacherStats =
+        document.getElementById(
+            'teacherStats'
+        );
+
+
+    const studentsTab =
+        document.getElementById(
+            'studentsTabItem'
+        );
+
+
+    teacherInfo.classList.remove(
+        'd-none'
+    );
+
+
+    teacherStats.classList.remove(
+        'd-none'
+    );
+
+
+    studentsTab.classList.remove(
+        'd-none'
+    );
+
+
+    /* -------------------------
+       CÓDIGO
+    -------------------------- */
+
+    document
+        .getElementById('courseCode')
+        .textContent =
+        course.code ||
+        'Sin código';
+
+
+    /* -------------------------
+       ESTUDIANTES
+    -------------------------- */
+
+    document
+        .getElementById('studentCount')
+        .textContent =
+        course.student_count ?? 0;
+
 }
 
-async function eliminar(id) {
-    if (!confirm('Eliminar este curso?')) return;
-    await api('/courses/' + id, 'DELETE');
-    cargar();
+
+/* =========================================================
+   COPIAR CÓDIGO
+========================================================= */
+
+async function copyCourseCode() {
+
+
+    const code =
+        document
+            .getElementById('courseCode')
+            .textContent
+            .trim();
+
+
+    if (
+        !code ||
+        code === 'Sin código'
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+
+        await navigator.clipboard.writeText(
+            code
+        );
+
+
+        showAlert(
+            'Código copiado al portapapeles.',
+            'success'
+        );
+
+
+    } catch (error) {
+
+
+        showAlert(
+            `Código del curso: ${code}`,
+            'info'
+        );
+
+    }
+
 }
 
-cargar();
+
+/* =========================================================
+   INICIAR
+========================================================= */
+
+loadCourse();
+
+
 </script>
+
 {% endblock %}

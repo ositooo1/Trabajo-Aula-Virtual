@@ -215,8 +215,20 @@ def dashboard():
 
 
 @app.route("/courses")
-def courses():
-    return render_template("courses.html")
+def courses_page():
+
+    return render_template(
+        "homepage.html"
+    )
+
+
+@app.route("/courses/<int:cid>")
+def course_detail_page(cid):
+
+    return render_template(
+        "courses.html",
+        course_id=cid
+    )
 
 
 @app.route("/students")
@@ -592,25 +604,60 @@ def api_join_course():
 # Si uno no esta activo, no te deja entrar :c y que el docente no pueda unirse a su propio curso.
 # Solo una inscripción.
 
-@app.route("/api/courses/<int:cid>", methods=["PUT", "DELETE"])
+@app.route("/api/courses/<int:cid>", methods=["GET", "PUT", "DELETE"])
 @requiere_login
 def api_course(cid):
     
     usuario = request.usuario_actual
     
-    curso = db.session.get(Curso, cid)
+    curso = db.session.get(Curso, cid) #Busca curso.
     
     if curso is None:
         return jsonify({"message": "Curso no encontrado"}), 404
     
-    # Validación docentes.
+    # Validación relación de usuarios.
     
-    relacion_docente = DocenteCurso.query.filter_by(curso_id=cid, docente_id=usuario.id).first()
+    relacion_docente = (DocenteCurso.query.filter_by(curso_id=cid, docente_id=usuario.id).first())
+    inscripcion = (Inscripcion.query.filter_by(curso_id=cid, estudiante_id=usuario.id).first())
     
-    if relacion_docente is None:
+    #Rol dentro de curso.
+    
+    if relacion_docente:
+        rol = "docente"
+    elif inscripcion:
+        rol = "estudiante"
+    else:
+        return jsonify({"message": "No debes de estar en este curso."}), 403
+    
+    #Coonsultar curso.
+    
+    if request.method == "GET":
+        
+        data = curso_a_dict(curso, rol)
+        
+        # La cantidad de estudiantes
+        # solamente la necesita el docente.
+
+        if rol == "docente":
+
+            data["student_count"] = (
+                Inscripcion.query
+                .filter_by(
+                    curso_id=cid
+                )
+                .count()
+            )
+
+
+        return jsonify({
+            "course": data
+        }), 200
+
+    # Put DELETE para docentes.
+    if rol != "docente":
         return jsonify({"message": "No tienes autorización para modificar el curso."}), 403
     
-    # Delete/archivar, esto es para que no eliminen el cuerpo, siendo inactivo para no poder romper
+    # archivar, esto es para que no eliminen el cuerpo, siendo inactivo para no poder romper
     # las relaciones con los estudiantes, contenido y evaluaciones del curso.
     
     if request.method == "DELETE":
