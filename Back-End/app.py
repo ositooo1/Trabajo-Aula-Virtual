@@ -85,7 +85,7 @@ class Inscripcion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
     estudiante_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
-    inscripto_en = db.Column(db.DateTime, server_default=db.func.now())
+    inscrito_en = db.Column(db.DateTime, server_default=db.func.now())
 
 # X usuario es docente del curso Y para DocenteCurso, X usuario es estudiante del curso Y para Inscripcion.
 
@@ -444,6 +444,153 @@ def api_courses_mine():
 #Esta es la Api en sí, que devuelve los cursos de un usuario, 
 # ya sea como docente o estudiante, 
 # dependiendo de su rol en cada curso.
+
+@app.route(
+    "/api/courses/join",
+    methods=["POST"]
+)
+@requiere_login
+def api_join_course():
+
+    usuario = request.usuario_actual
+
+    # LEER DATOS
+
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+
+    codigo = (
+        data.get(
+            "code",
+            ""
+        )
+        .strip()
+        .upper()
+    )
+
+    # Valida código.
+
+    if not codigo:
+
+        return jsonify({
+            "message":
+                "Ingresá el código del curso"
+        }), 400
+
+    # Buscar curso.
+
+    curso = Curso.query.filter_by(
+        codigo=codigo
+    ).first()
+
+
+    if curso is None:
+
+        return jsonify({
+            "message":
+                "No existe un curso con ese código"
+        }), 404
+
+    # verificar estado.
+    if not curso.activo:
+
+        return jsonify({
+            "message":
+                "Este curso ya no está activo"
+        }), 400
+    # ¿ES DOCENTE?
+
+    es_docente = (
+        DocenteCurso.query
+        .filter_by(
+            curso_id=curso.id,
+            docente_id=usuario.id
+        )
+        .first()
+    )
+
+
+    if es_docente:
+
+        return jsonify({
+            "message":
+                "Ya sos docente de este curso"
+        }), 409
+
+    # ¿YA ESTÁ INSCRIPTO?
+    inscripcion_existente = (
+        Inscripcion.query
+        .filter_by(
+            curso_id=curso.id,
+            estudiante_id=usuario.id
+        )
+        .first()
+    )
+
+
+    if inscripcion_existente:
+
+        return jsonify({
+            "message":
+                "Ya estás inscripto en este curso"
+        }), 409
+
+    # Nueva inscripción.
+
+    nueva_inscripcion = Inscripcion(
+
+        curso_id=curso.id,
+
+        estudiante_id=usuario.id
+
+    )
+
+
+    try:
+
+        db.session.add(
+            nueva_inscripcion
+        )
+
+        db.session.commit()
+
+
+    except Exception as error:
+
+        db.session.rollback()
+
+
+        print(
+            "Error al inscribir usuario:",
+            error
+        )
+
+
+        return jsonify({
+            "message":
+                "No se pudo realizar la inscripción"
+        }), 500
+
+    # Answer.
+
+    return jsonify({
+
+        "message":
+            "Te uniste al curso correctamente",
+
+        "course":
+            curso_a_dict(
+                curso,
+                "estudiante"
+            )
+
+    }), 201
+
+#Transforma a mayúscula el código y lo verifica en base de lo que haya recibido.
+# Si uno no esta activo, no te deja entrar :c y que el docente no pueda unirse a su propio curso.
+# Solo una inscripción.
 
 @app.route("/api/courses/<int:cid>", methods=["PUT", "DELETE"])
 @requiere_login
