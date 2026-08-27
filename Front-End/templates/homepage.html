@@ -807,14 +807,207 @@ function openJoinCourse() {
     showModal(
         'Unirme a un curso',
         `
-            <p class="text-secondary mb-0">
-                Vamos a configurar la unión por código
-                junto con la nueva API de cursos.
-            </p>
+            <form id="joinCourseForm">
+
+                <div class="mb-4">
+
+                    <label
+                        for="courseCode"
+                        class="form-label"
+                    >
+                        Código del curso
+                    </label>
+
+
+                    <input
+                        type="text"
+                        class="form-control form-control-lg text-center"
+                        id="courseCode"
+                        maxlength="20"
+                        autocomplete="off"
+                        placeholder="Ej: QGZ87A"
+                        style="
+                            text-transform: uppercase;
+                            letter-spacing: 3px;
+                            font-weight: 600;
+                        "
+                        required
+                    >
+
+
+                    <div class="form-text mt-2">
+
+                        Ingresá el código que te compartió
+                        el docente del curso.
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="
+                        d-flex
+                        justify-content-end
+                        gap-2
+                    "
+                >
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        onclick="closeModal()"
+                    >
+                        Cancelar
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-orange"
+                        id="joinCourseButton"
+                    >
+                        Unirme
+                    </button>
+
+                </div>
+
+            </form>
         `
     );
 
+
+    const form =
+        document.getElementById(
+            'joinCourseForm'
+        );
+
+
+    form.addEventListener(
+        'submit',
+        joinCourse
+    );
+
+
+    /*
+        Ponemos el cursor directamente
+        en el campo del código.
+    */
+
+    setTimeout(
+        function() {
+
+            document
+                .getElementById('courseCode')
+                ?.focus();
+
+        },
+        300
+    );
+
 }
+
+async function joinCourse(event) {
+
+    event.preventDefault();
+
+
+    /* LEER CÓDIGO. */
+
+    const input =
+        document.getElementById(
+            'courseCode'
+        );
+
+
+    const button =
+        document.getElementById(
+            'joinCourseButton'
+        );
+
+
+    const code =
+        input
+            .value
+            .trim()
+            .toUpperCase();
+
+
+    /* VALIDACIÓN. */
+
+    if (!code) {
+
+        showAlert(
+            'Ingresá el código del curso.',
+            'error'
+        );
+
+        input.focus();
+
+        return;
+    }
+
+
+    /* Bloquear form. */
+
+    button.disabled = true;
+
+    input.disabled = true;
+
+    button.textContent =
+        'Uniéndome...';
+
+
+    /* A backend. */
+
+    const response =
+        await api(
+            '/courses/join',
+            'POST',
+            {
+                code: code
+            }
+        );
+
+
+    /* Error.*/
+
+    if (!response) {
+
+        button.disabled = false;
+
+        input.disabled = false;
+
+        button.textContent =
+            'Unirme';
+
+        input.focus();
+
+        return;
+    }
+
+
+    /* Yey.*/
+
+    closeModal();
+
+
+    showAlert(
+        response.message ||
+        'Te uniste al curso correctamente.',
+        'success'
+    );
+
+
+    /*
+        Volvemos a pedir los cursos reales
+        al backend para actualizar la pantalla.
+    */
+
+    await loadMyCourses();
+
+}
+
 
 
 /* EJECUTAR.*/
