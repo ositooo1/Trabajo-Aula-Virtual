@@ -373,10 +373,11 @@ async function api(
             que la sesión ya no es válida.
 
             Limpiamos los datos locales y volvemos
-            al login.
+            al login, pero este es una excepción que no mostramos como alerta,
+            solo es que el email o contraseña no son válidos o la sesión expiró.
         */
 
-        if (response.status === 401) {
+        if (response.status === 401 && endpoint !== '/login') {
 
             logout();
 
