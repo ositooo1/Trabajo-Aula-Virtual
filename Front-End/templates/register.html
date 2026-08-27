@@ -1,70 +1,417 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>Registro - Aula Virtual</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+
+    <!--Bootstrap.-->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!--CSS.-->
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
 </head>
+
+
 <body class="auth-page">
+
+
     <div class="auth-box">
-        <h1>Aula Virtual</h1>
-        <p>Crea tu cuenta</p>
+
+
+        <!--ENCABEZADO.-->
+
+        <div class="text-center mb-4">
+
+            <div
+                class="brand-icon mx-auto mb-3"
+                style="width: 52px; height: 52px;"
+            >
+                AV
+            </div>
+
+            <h1>
+                Crear cuenta
+            </h1>
+
+            <p class="mb-0">
+                Registrate para comenzar a utilizar Aula Virtual
+            </p>
+
+        </div>
+
+
+        <!-- ALERTAS.-->
 
         <div id="alerts"></div>
 
+
+        <!-- FORMS. -->
+
         <form id="registerForm">
-            <div class="form-group">
-                <label>Nombre</label>
-                <input type="text" id="username" required placeholder="Tu nombre">
+
+
+            <!-- Nombre + Apellido -->
+
+            <div class="row g-3 mb-3">
+
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="username"
+                        class="form-label"
+                    >
+                        Nombre
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="username"
+                        name="username"
+                        required
+                        maxlength="100"
+                        autocomplete="given-name"
+                        placeholder="Tu nombre"
+                    >
+
+                </div>
+
+
+                <div class="col-12 col-md-6">
+
+                    <label
+                        for="lastname"
+                        class="form-label"
+                    >
+                        Apellido
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="lastname"
+                        name="lastname"
+                        required
+                        maxlength="100"
+                        autocomplete="family-name"
+                        placeholder="Tu apellido"
+                    >
+
+                </div>
+
+
             </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="email" required placeholder="tu@email.com">
+
+
+            <!-- Email -->
+
+            <div class="mb-3">
+
+                <label
+                    for="email"
+                    class="form-label"
+                >
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    class="form-control"
+                    id="email"
+                    name="email"
+                    required
+                    maxlength="150"
+                    autocomplete="email"
+                    placeholder="tu@email.com"
+                >
+
             </div>
-            <div class="form-group">
-                <label>Rol</label>
-                <select id="role" required>
-                    <option value="">Seleccionar...</option>
-                    <option value="estudiante">Estudiante</option>
-                    <option value="profesor">Profesor</option>
-                </select>
+
+
+            <!-- Contraseña -->
+
+            <div class="mb-4">
+
+                <label
+                    for="password"
+                    class="form-label"
+                >
+                    Contraseña
+                </label>
+
+                <input
+                    type="password"
+                    class="form-control"
+                    id="password"
+                    name="password"
+                    required
+                    minlength="6"
+                    autocomplete="new-password"
+                    placeholder="Mínimo 6 caracteres"
+                >
+
+                <div class="form-text">
+                    La contraseña debe tener al menos 6 caracteres.
+                </div>
+
             </div>
-            <div class="form-group">
-                <label>Contrasena</label>
-                <input type="password" id="password" required placeholder="Minimo 6 caracteres">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%">Crear Cuenta</button>
+
+
+            <!-- Botón -->
+
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+                id="registerButton"
+            >
+                Crear cuenta
+            </button>
+
+
         </form>
 
-        <p class="text-center mt">
-            Ya tienes cuenta? <a href="/login">Inicia sesion</a>
-        </p>
+
+        <!--LOGIN.-->
+
+        <div class="text-center mt-4">
+
+            <p class="mb-0">
+
+                ¿Ya tenés una cuenta?
+
+                <a
+                    href="/login"
+                    class="fw-semibold"
+                >
+                    Iniciar sesión
+                </a>
+
+            </p>
+
+        </div>
+
+
     </div>
 
+
+    <!-- Bootstrap JS. -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    ></script>
+
+
+    <!-- Funciones generales. -->
+    <script
+        src="{{ url_for('static', filename='js/app.js') }}"
+    ></script>
+
+
+    <!-- Registro. -->
     <script>
-        document.getElementById('registerForm').onsubmit = async function(e) {
-            e.preventDefault();
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    username: document.getElementById('username').value,
-                    email: document.getElementById('email').value,
-                    role: document.getElementById('role').value,
-                    password: document.getElementById('password').value
-                })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                window.location.href = '/login';
-            } else {
-                const d = document.createElement('div');
-                d.className = 'msg msg-error';
-                d.textContent = data.message || 'Error al registrar';
-                document.getElementById('alerts').appendChild(d);
+
+        const registerForm =
+            document.getElementById('registerForm');
+
+
+        const registerButton =
+            document.getElementById('registerButton');
+
+
+        registerForm.addEventListener(
+            'submit',
+            async function(event) {
+
+
+                /* Evitamos que el navegador recargue la página.*/
+
+                event.preventDefault();
+
+
+                /*Leemos y limpiamos los valores del formulario.*/
+
+                const username =
+                    document
+                        .getElementById('username')
+                        .value
+                        .trim();
+
+
+                const lastname =
+                    document
+                        .getElementById('lastname')
+                        .value
+                        .trim();
+
+
+                const email =
+                    document
+                        .getElementById('email')
+                        .value
+                        .trim()
+                        .toLowerCase();
+
+
+                const password =
+                    document
+                        .getElementById('password')
+                        .value;
+
+
+                /*
+                    Validación adicional del frontend. 
+                    "required" ya hace una validación
+                    básica, pero igualmente los verifican con 
+                    los datos antes de enviarlos.
+                */
+
+                if (!username) {
+
+                    showAlert(
+                        'Ingresá tu nombre.',
+                        'error'
+                    );
+
+                    return;
+                }
+
+
+                if (!lastname) {
+
+                    showAlert(
+                        'Ingresá tu apellido.',
+                        'error'
+                    );
+
+                    return;
+                }
+
+
+                if (!email) {
+
+                    showAlert(
+                        'Ingresá tu email.',
+                        'error'
+                    );
+
+                    return;
+                }
+
+
+                if (password.length < 6) {
+
+                    showAlert(
+                        'La contraseña debe tener al menos 6 caracteres.',
+                        'error'
+                    );
+
+                    return;
+                }
+
+
+                /*
+                    Mientras se realiza el registro,
+                    deshabilitamos el botón.
+
+                    Así evitamos que el usuario haga
+                    varios POST seguidos haciendo
+                    muchos clics.
+                */
+
+                registerButton.disabled = true;
+
+                registerButton.textContent =
+                    'Creando cuenta...';
+
+
+                /*
+                    Utilizamos la función api()
+                    que creamos en app.js.
+
+                    Esto hará:
+
+                    POST /api/register
+                */
+
+                const response =
+                    await api(
+                        '/register',
+                        'POST',
+                        {
+                            username: username,
+                            lastname: lastname,
+                            email: email,
+                            password: password
+                        }
+                    );
+
+
+                /*
+                    Si response existe,
+                    significa que Flask respondió
+                    correctamente.
+                */
+
+                if (response) {
+
+                    showAlert(
+                        'Cuenta creada correctamente. Redirigiendo al inicio de sesión...',
+                        'success'
+                    );
+
+
+                    /*
+                        Pequeña espera para que el usuario
+                        alcance a ver el mensaje.
+                    */
+
+                    setTimeout(
+                        function() {
+
+                            window.location.href =
+                                '/login';
+
+                        },
+                        1200
+                    );
+
+                    return;
+                }
+
+
+                /*
+                    Si hubo un error permitimos
+                    volver a intentar.
+                */
+
+                registerButton.disabled = false;
+
+                registerButton.textContent =
+                    'Crear cuenta';
+
+
             }
-        };
+        );
+
     </script>
+
+
 </body>
+
 </html>

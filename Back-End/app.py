@@ -34,7 +34,12 @@ class Usuario(db.Model):
     __tablename__ = "usuarios"
 
     id = db.Column(db.Integer, primary_key=True)
-    rol_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False)
+    
+    # El rol no define si es docente o estudiante...
+    # Docentes_cursos e Inscripciones definen si un usuario es docente o estudiante en un curso específico.
+    rol_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=True) # Self dc.
+    # Un mismo usuario ahora puede ser estudiante y profesor dependiendo del modo en el cual se introdujo al curso.
+    
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -133,8 +138,30 @@ def evaluations():
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
-    data = request.get_json()
+    data = request.get_json(silent = True) or {} #JSON no, si en diccionario vacío.
 
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    
+    if not email or not password:
+        return jsonify({"message": "Email y contraseña son campos obligatorios."}), 400
+    
+    # Se busca usuario de bd.
+    usuario = Usuario.query.filter_by(email=email).first()
+    
+    # Verifica passwold.
+    if (usuario is None or not usuario.activo or not check_password_hash(usuario.password_hash, password)):
+        return jsonify({"message": "Email o contraseña incorrectos."}), 401
+
+    return jsonify({
+            "token": "tok_" + usuario.email, # Este es una verga, pero no tengo ni idea como hacer uno no tan predecible y el chat no ayuda. ;-;
+            "user": {
+                "id": usuario.id,
+                "username": usuario.nombre,
+                "lastname": usuario.apellido,
+                "email": usuario.email
+            }}), 200
+""" Te lo dejo como para que te quede para vos, es lo mismo pero valido desde 0, btw es para eliminar lo de rol. :)
     usuario = Usuario.query.filter_by(email=data.get("email")).first()
 
     if usuario and check_password_hash(usuario.password_hash, data.get("password", "")):
@@ -144,6 +171,8 @@ def api_login():
                 "user": {
                     "id": usuario.id,
                     "username": usuario.nombre,
+                    "lastname": usuario.apellido,
+                    "email": usuario.email,
                     "role": usuario.rol.nombre,
                 },
             }
@@ -151,11 +180,89 @@ def api_login():
 
     return jsonify({"message": "Email o contrasena incorrectos"}), 401
 
+También porque devuelve el rol, pero no es necesario, ya que el usuario puede ser estudiante y docente a la vez, dependiendo del curso. Por eso lo eliminé. :v
+Solo agrege el id de enumeración, nombre, apellido y email. 
+"""
 
 @app.route("/api/register", methods=["POST"])
-def api_register():
-    data = request.get_json()
+def api_register(): # Redefino estructura eliminando ppios.
+    data = request.get_json() or {} # Si JSON no es validado, se guarda en un diccionario vacío.
 
+    # Lectura de campos. btw strip es una función que elimina los espacios innecesarios.
+    nombre = data.get("username", "").strip()
+    apellido = data.get("lastname", "").strip()
+    email = data.get("email", "").strip().lower() #solo minúsculas.
+    password = data.get("password", "")
+
+    # Validación de campos.
+    if not nombre: 
+        return jsonify({"message": "El nombre es obligatorio."}), 400
+
+    if not apellido:
+        return jsonify({"message": "El apellido es obligatorio."}), 400
+
+    if not email:
+        return jsonify({"message": "El email es obligatorio."}), 400
+
+    if not password:
+        return jsonify({"message": "La contraseña es obligatoria."}), 400
+
+    if len(password) < 6:
+        return jsonify({"message": "La contraseña debe tener al menos 6 caracteres."}), 400
+
+    #Limite de caracteres en base a bd.
+    
+    if len(nombre) > 100:
+        return jsonify({"message": "El nombre no puede superar los 100 caracteres."}), 400
+
+    if len(apellido) > 100:
+        return jsonify({"message": "El apellido no puede superar los 100 caracteres."}), 400
+
+    if len(email) > 150:
+        return jsonify({"message": "El email no puede superar los 150 caracteres."}), 400
+
+    # Email momento.
+    
+    usuario_existente = Usuario.query.filter_by(email=email).first()
+    
+    if usuario_existente:
+        return jsonify({"message": "El email ya está registrado, intentelo de nuevo o trate con otro correo disponible."}), 400
+
+
+    # New pipol, (usuario).
+    
+    nuevo_usuario = Usuario(
+        nombre=nombre,
+        apellido=apellido,
+        email=email,
+        password_hash=generate_password_hash(password),
+        rol_id = None,
+        activo = True
+    )
+    
+    #Commit a db.
+    try:
+        db.session.add(nuevo_usuario)
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        print(f"Error al registrar usuario: {error}")
+        return jsonify({"message": "Error al registrar usuario, intentelo de nuevo."}), 500
+    
+    return jsonify({"message": "Registro exitoso", 
+                    "user": 
+                            {"id": nuevo_usuario.id, 
+                            "name": nuevo_usuario.nombre,
+                            "lastname": nuevo_usuario.apellido, 
+                            "email": nuevo_usuario.email}}), 201
+        
+    # Esa es la respuesta l crear nuevos usuarios.
+    # En resumen: 
+    # El endpoint de registro valida los datos, 
+    # verifica si el email ya está registrado, 
+    # y si todo es correcto, crea un nuevo usuario en la base de datos
+    # y devuelve un mensaje de éxito junto con los detalles del usuario creado.
+"""
     if Usuario.query.filter_by(email=data.get("email")).first():
         return jsonify({"message": "El email ya esta registrado"}), 400
 
@@ -167,9 +274,9 @@ def api_register():
         db.session.commit()
 
     nuevo_usuario = Usuario(
-        nombre=data.get("username", ""),
-        apellido="",
-        email=data.get("email", ""),
+        nombre=nombre, .... 
+        apellido=apellido, ASNDASOKFAMADAF
+        email=data.get("email", ""), 
         password_hash=generate_password_hash(data.get("password", "")),  # ojo, esto lo mejoramos en el próximo paso
         rol_id=rol.id,
     )
@@ -177,7 +284,7 @@ def api_register():
     db.session.commit()
 
     return jsonify({"message": "Registro exitoso"}), 201
-
+"""
 
 @app.route("/api/courses", methods=["GET", "POST"])
 @requiere_login
