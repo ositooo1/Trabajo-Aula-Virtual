@@ -418,10 +418,69 @@ function showUserHome(user) {
         GET /api/courses/mine
     */
 
-    coursesLoading.classList.remove('d-none');
+    loadMyCourses();
 
 }
 
+
+async function loadMyCourses() {
+
+    /*
+        Mostramos el spinner mientras
+        pedimos los datos.
+    */
+
+    coursesLoading.classList.remove(
+        'd-none'
+    );
+
+
+    emptyCourses.classList.add(
+        'd-none'
+    );
+
+
+    coursesContainer.classList.add(
+        'd-none'
+    );
+
+
+    /*
+        app.js agrega automáticamente
+        el token Authorization.
+    */
+
+    const data =
+        await api(
+            '/courses/mine'
+        );
+
+
+    /*
+        api() ya mostró el mensaje de error
+        si ocurrió algún problema.
+    */
+
+    if (!data) {
+
+        coursesLoading.classList.add(
+            'd-none'
+        );
+
+        return;
+    }
+
+
+    /*
+        Mandamos los datos reales
+        a nuestra función visual.
+    */
+
+    renderCourses(
+        data.courses || []
+    );
+
+}
 
 /* MOSTRAR CURSO. */
 

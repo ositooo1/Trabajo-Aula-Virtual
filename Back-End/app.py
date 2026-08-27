@@ -53,9 +53,28 @@ class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
-    codigo = db.Column(db.String(20))
-    profesor = db.Column(db.String(150))
-    activo = db.Column(db.Boolean, default=True)
+    ciclo_lectivo_id = db.Column(db.Integer, db.ForeignKey("ciclos_lectivos.id"), nullable=True)
+    creado_por = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
+    activo = db.Column(db.Boolean, default=True),
+    crado_en = db.Column(db.DateTime, server_default=db.func.now())
+
+class DocenteCurso(db.Model):
+    __tablename__ = "docentes_cursos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
+    docente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    asignado_en = db.Column(db.DateTime, server_default=db.func.now())  
+
+class Inscripcion(db.Model):
+    __tablename__ = "inscripciones"
+
+    id = db.Column(db.Integer, primary_key=True)
+    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
+    estudiante_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    inscripto_en = db.Column(db.DateTime, server_default=db.func.now())
+
+# X usuario es docente del curso Y para DocenteCurso, X usuario es estudiante del curso Y para Inscripcion.
 
 def requiere_login(f):
     @wraps(f)
@@ -80,6 +99,47 @@ def requiere_login(f):
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
+def curso_a_dict(curso, rol):
+    #Método para no repetir código al obtener cursos de un usuario, ya sea como docente o estudiante.
+    return {
+        "id": curso.id,
+        "name": curso.nombre,
+        "description": curso.descripcion or "",
+        "role": rol,
+        "status": "active" if curso.activo else "inactive",
+    }
+
+
+def obtener_cursos_usuario(usuario_id):
+    cursos = {}
+
+    #Docente.
+    cursos_docente = (
+        db.session.query(Curso)
+        .join(DocenteCurso, DocenteCurso.curso_id == Curso.id)
+        .filter(DocenteCurso.docente_id == usuario_id, 
+                Curso.activo.is_(True)).all()
+    )
+    
+    for curso in cursos_docente:
+        cursos[curso.id] = curso_a_dict(curso, "docente")
+
+    #Alumno.
+    cursos_estudiante = (
+        db.session.query(Curso)
+        .join(Inscripcion, Inscripcion.curso_id == Curso.id)
+        .filter(Inscripcion.estudiante_id == usuario_id, 
+                Curso.activo.is_(True)).all()
+    )
+
+    for curso in cursos_estudiante:
+    # Combinación de cursos en caso de que un usuario sea docente y estudiante en el mismo cursos, 
+    # priorize docente para no duplicarlo.
+        if curso.id not in cursos:
+            
+            cursos[curso.id] = curso_a_dict(curso, "estudiante")
+    
+    return list(cursos.values())
 
 def load_data(name):
     path = os.path.join(DATA_DIR, f"{name}.json")
@@ -289,46 +349,111 @@ def api_register(): # Redefino estructura eliminando ppios.
 @app.route("/api/courses", methods=["GET", "POST"])
 @requiere_login
 def api_courses():
+    
+    usuario = request.usuario_actual
+    
+    #Lista de cursos de x usuario.
+    
     if request.method == "GET":
-        cursos = Curso.query.all()
-        return jsonify({
-            "courses": [
-                {
-                    "id": c.id,
-                    "name": c.nombre,
-                    "description": c.descripcion,
-                    "code": c.codigo,
-                    "teacher": c.profesor,
-                    "status": "active" if c.activo else "inactive",
-                }
-                for c in cursos
-            ]
-        })
+        return jsonify({"courses": obtener_cursos_usuario(usuario.id)})
 
-    data = request.get_json()
-    nuevo_curso = Curso(
-        nombre=data.get("name", ""),
-        descripcion=data.get("description", ""),
-        codigo=data.get("code", ""),
-        profesor=data.get("teacher", ""),
-        activo=data.get("status", "active") == "active",
-    )
-    db.session.add(nuevo_curso)
-    db.session.commit()
+    #  Creación cursos.
+    
+    data = request.get_json(silent = True) or {}
+    nombre = data.get("name", "").strip()
+    descripcion = data.get("description", "").strip()
+    
+    #Vld.
+    if not nombre:
+        return jsonify({"message": "El nombre del curso es obligatorio."}), 400
+    
+    if len(nombre) > 150:
+        return jsonify({"message": "El nombre del curso no puede superar los 150 caracteres."}), 400
+    
+    nuevo_curso = Curso( 
+                        nombre=nombre, 
+                        descripcion=descripcion,
+                        creado_por=usuario.id, 
+                        activo=True)
+    
+    try:
+        #Nuevo curso a db.
+        db.session.add(nuevo_curso)
+        db.session.flush() # El flush es para extraer un id antes de hacer commit, para poder usarlo en la relación docente_curso.
+        #Toma el id del nuevo curso y lo asigna al docente que lo creó, para que quede registrado como docente del curso.
+        relacion_docente = DocenteCurso(curso_id=nuevo_curso.id, docente_id=usuario.id)
+        db.session.add(relacion_docente)
+        
+        db.session.commit()
+    
+    except Exception as error:
+        db.session.rollback()
+        print(f"Error al crear el curso: {error}")
+        return jsonify({"message": "Error al crear el curso"}), 500
+    
+    return jsonify(curso_a_dict(nuevo_curso, "docente")), 201
 
-    return jsonify({
-        "id": nuevo_curso.id,
-        "name": nuevo_curso.nombre,
-        "description": nuevo_curso.descripcion,
-        "code": nuevo_curso.codigo,
-        "teacher": nuevo_curso.profesor,
-        "status": "active" if nuevo_curso.activo else "inactive",
-    }), 201
 
+
+@app.route("/api/courses/mine", methods=["GET"])
+@requiere_login
+def api_courses_mine():
+    usuario = request.usuario_actual
+    cursos = obtener_cursos_usuario(usuario.id)
+    return jsonify({"courses": cursos}), 200
+
+#Esta es la Api en sí, que devuelve los cursos de un usuario, 
+# ya sea como docente o estudiante, 
+# dependiendo de su rol en cada curso.
 
 @app.route("/api/courses/<int:cid>", methods=["PUT", "DELETE"])
 @requiere_login
 def api_course(cid):
+    
+    usuario = request.usuario_actual
+    
+    curso = db.session.get(Curso, cid)
+    
+    if curso is None:
+        return jsonify({"message": "Curso no encontrado"}), 404
+    
+    # Validación docentes.
+    
+    relacion_docente = DocenteCurso.query.filter_by(curso_id=cid, docente_id=usuario.id).first()
+    
+    if relacion_docente is None:
+        return jsonify({"message": "No tienes autorización para modificar el curso."}), 403
+    
+    # Delete/archivar, esto es para que no eliminen el cuerpo, siendo inactivo para no poder romper
+    # las relaciones con los estudiantes, contenido y evaluaciones del curso.
+    
+    if request.method == "DELETE":
+        curso.activo = False
+        db.session.commit()
+        return jsonify({"message": "Curso archivado"}), 200
+    
+    # Permiso de edición.
+    data=request.get_json(silent = True) or {}
+    
+    if "name" in data:
+        nombre = data.get("name", "").strip()
+        
+        if not nombre:
+            return jsonify({"message": "El nombre del curso es obligatorio."}), 400
+        
+        if len(nombre) > 150:
+            return jsonify({"message": "El nombre del curso no puede superar los 150 caracteres."}), 400
+        
+        curso.nombre = nombre
+    
+    if "description" in data:
+        curso.descripcion = data.get("description", "").strip()
+    
+    db.session.commit()
+    return jsonify(curso_a_dict(curso, "docente")), 200
+    
+    
+    """ 
     curso = Curso.query.get(cid)
     if curso is None:
         return jsonify({"message": "No encontrado"}), 404
@@ -359,7 +484,7 @@ def api_course(cid):
         "teacher": curso.profesor,
         "status": "active" if curso.activo else "inactive",
     })
-
+"""
 
 @app.route("/api/students", methods=["GET", "POST"])
 @requiere_login
