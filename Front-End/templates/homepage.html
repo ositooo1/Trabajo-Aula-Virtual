@@ -651,19 +651,154 @@ function createCourseCard(course) {
 /*  CREAR CURSO.*/
 
 function openCreateCourse() {
-
+/* Opening the modal with the boot form.*/
     showModal(
         'Crear curso',
         `
-            <p class="text-secondary mb-0">
-                Vamos a conectar este formulario
-                con la base de datos en el próximo paso.
-            </p>
+            <form id="createCourseForm">
+
+                <div class="mb-3">
+
+                    <label
+                        for="courseName"
+                        class="form-label"
+                    >
+                        Nombre del curso
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="courseName"
+                        maxlength="150"
+                        required
+                        placeholder="Ej: Programación I"
+                    >
+
+                </div>
+
+
+                <div class="mb-4">
+
+                    <label
+                        for="courseDescription"
+                        class="form-label"
+                    >
+                        Descripción
+                    </label>
+
+                    <textarea
+                        class="form-control"
+                        id="courseDescription"
+                        rows="4"
+                        placeholder="Contá brevemente de qué trata el curso"
+                    ></textarea>
+
+                    <div class="form-text">
+                        Este campo es opcional.
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="
+                        d-flex
+                        justify-content-end
+                        gap-2
+                    "
+                >
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        onclick="closeModal()"
+                    >
+                        Cancelar
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                        id="createCourseButton"
+                    >
+                        Crear curso
+                    </button>
+
+                </div>
+
+            </form>
         `
     );
 
+/*  El form se agrega al dominio medianate la función showModal.
+Permitiendo que se pueda acceder a él mediante el DOM y poder escuchar el submit.*/
+
+    const form = document.getElementById('createCourseForm');
+    form.addEventListener('submit', createCourse);
+
 }
 
+async function createCourse(event) {
+    /* evitamos que se recargue con default. */
+    event.preventDefault();
+
+    /*  Leemos los valores de los inputs del form. */
+
+    const name = document.getElementById('courseName').value.trim();
+
+    const description = document.getElementById('courseDescription').value.trim();
+
+    const button = document.getElementById('createCourseButton');
+
+    /*  validation. */
+
+    if (!name) {
+        showAlert('El nombre del curso es obligatorio.', 'error');
+        return;
+    }
+
+    if (name.length > 150) {
+        showAlert('El nombre del curso no puede superar los 150 caracteres.', 'error');
+        return;
+    }
+
+    /*  Block. */
+
+    button.disabled = true;
+    button.textContent = 'Creando...';
+
+     /*  Manda a back. */
+    const response = await api(
+        '/courses', 
+        'POST', 
+        { name: name , description: description });
+
+    /*error handling.*/
+
+    if (!response) {
+        button.disabled = false;
+        button.textContent = 'Crear curso';
+        return;
+    }
+
+    /*  Success. */
+    closeModal();
+    showAlert('Curso creado exitosamente.', 'success');
+    
+
+    /*   No inventamos la tarjeta localmente:
+        pedimos otra vez los cursos reales
+        al backend.*/
+    await loadMyCourses();
+}
+
+/* Crear curso, open CreateCourse(), modal Bootstrap, 
+completa nombre y desc., createCourse(), manda a la API POST,
+Le llega a app.py y este se lo da a MySQL. Guardando:
+curso, docente del curso, va al closeModal, espera cursos y les hace GET para renderizarlos y aparecen en el mural del aula.
+Solo se envía nombre y descripción del curso debido a usuario_actual que ya repasa por ser docente y aquellos que se incriban seran alumnis.*/
 
 /*  UNIRSE A CURSO. */
 
