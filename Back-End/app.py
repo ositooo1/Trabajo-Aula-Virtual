@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+import secrets #Generador de cifrados alfanuméricos únicos aleatorios en vez de random.
 import json
 import os
 
@@ -64,6 +65,7 @@ class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
+    codigo = db.Column(db.String(20), unique = True, nullable = True)
     ciclo_lectivo_id = db.Column(db.Integer, db.ForeignKey("ciclos_lectivos.id"), nullable=True)
     creado_por = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
     activo = db.Column(db.Boolean, default=True)
@@ -110,15 +112,40 @@ def requiere_login(f):
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
+def generar_codigo_curso():
+    caracteres = (
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "0123456789"
+    ) #Fuente de digit.
+    while True:
+        codigo = "".join(
+            secrets.choice(caracteres)
+            for _ in range(6)
+        ) #Genera 6 x aleatorios: voilá K847SM
+        existente = Curso.query.filter_by(
+            codigo=codigo
+        ).first()
+
+        if existente is None:
+            return codigo
+        
+    #Si ya existe, lo vuelve a hacer hasta que hace uno que no exista. :d
+
+
 def curso_a_dict(curso, rol):
     #Método para no repetir código al obtener cursos de un usuario, ya sea como docente o estudiante.
-    return {
+    data = {
         "id": curso.id,
         "name": curso.nombre,
         "description": curso.descripcion or "",
         "role": rol,
         "status": "active" if curso.activo else "inactive",
     }
+    
+    #Código solo se muestra al docente.
+    if rol == "docente":
+        data["code"] = curso.codigo
+    return data
 
 
 def obtener_cursos_usuario(usuario_id):
@@ -384,6 +411,7 @@ def api_courses():
     nuevo_curso = Curso( 
                         nombre=nombre, 
                         descripcion=descripcion,
+                        codigo = generar_codigo_curso(),
                         creado_por=usuario.id, 
                         activo=True)
     
