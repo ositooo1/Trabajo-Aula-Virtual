@@ -47,6 +47,17 @@ class Usuario(db.Model):
     activo = db.Column(db.Boolean, default=True)
     rol = db.relationship("Rol")
     
+class CicloLectivo(db.Model):
+    __tablename__ = "ciclos_lectivos"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    nombre = db.Column(db.String(50),nullable=False )
+
+    fecha_inicio = db.Column(db.Date)
+
+    fecha_fin = db.Column(db.Date )
+    
 class Curso(db.Model):
     __tablename__ = "cursos"
 
