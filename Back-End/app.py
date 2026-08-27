@@ -55,8 +55,8 @@ class Curso(db.Model):
     descripcion = db.Column(db.Text)
     ciclo_lectivo_id = db.Column(db.Integer, db.ForeignKey("ciclos_lectivos.id"), nullable=True)
     creado_por = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
-    activo = db.Column(db.Boolean, default=True),
-    crado_en = db.Column(db.DateTime, server_default=db.func.now())
+    activo = db.Column(db.Boolean, default=True)
+    creado_en = db.Column(db.DateTime, server_default=db.func.now())
 
 class DocenteCurso(db.Model):
     __tablename__ = "docentes_cursos"
