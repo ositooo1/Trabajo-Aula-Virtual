@@ -1,5 +1,5 @@
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
+from extension import db
+from flask import Flask, render_template, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import secrets #Generador de cifrados alfanuméricos únicos aleatorios en vez de random.
@@ -21,7 +21,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
     "mysql+pymysql://root:@127.0.0.1:3306/aula_virtual"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
+db.init_app(app)
+
 
 class Rol(db.Model):
     __tablename__ = "roles"
