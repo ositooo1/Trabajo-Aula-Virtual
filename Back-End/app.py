@@ -1,4 +1,12 @@
 from extension import db
+from models import (
+    Rol,
+    Usuario,
+    CicloLectivo,
+    Curso,
+    DocenteCurso,
+    Inscripcion
+)
 from flask import Flask, render_template, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -22,73 +30,6 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
-
-
-class Rol(db.Model):
-    __tablename__ = "roles"
-
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(30), unique=True, nullable=False)
-    
-
-
-class Usuario(db.Model):
-    __tablename__ = "usuarios"
-
-    id = db.Column(db.Integer, primary_key=True)
-    
-    # El rol no define si es docente o estudiante...
-    # Docentes_cursos e Inscripciones definen si un usuario es docente o estudiante en un curso específico.
-    rol_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=True) # Self dc.
-    # Un mismo usuario ahora puede ser estudiante y profesor dependiendo del modo en el cual se introdujo al curso.
-    
-    nombre = db.Column(db.String(100), nullable=False)
-    apellido = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    activo = db.Column(db.Boolean, default=True)
-    rol = db.relationship("Rol")
-    
-class CicloLectivo(db.Model):
-    __tablename__ = "ciclos_lectivos"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    nombre = db.Column(db.String(50),nullable=False )
-
-    fecha_inicio = db.Column(db.Date)
-
-    fecha_fin = db.Column(db.Date )
-    
-class Curso(db.Model):
-    __tablename__ = "cursos"
-
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(150), nullable=False)
-    descripcion = db.Column(db.Text)
-    codigo = db.Column(db.String(20), unique = True, nullable = True)
-    ciclo_lectivo_id = db.Column(db.Integer, db.ForeignKey("ciclos_lectivos.id"), nullable=True)
-    creado_por = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
-    activo = db.Column(db.Boolean, default=True)
-    creado_en = db.Column(db.DateTime, server_default=db.func.now())
-
-class DocenteCurso(db.Model):
-    __tablename__ = "docentes_cursos"
-
-    id = db.Column(db.Integer, primary_key=True)
-    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
-    docente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
-    asignado_en = db.Column(db.DateTime, server_default=db.func.now())  
-
-class Inscripcion(db.Model):
-    __tablename__ = "inscripciones"
-
-    id = db.Column(db.Integer, primary_key=True)
-    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
-    estudiante_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
-    inscrito_en = db.Column(db.DateTime, server_default=db.func.now())
-
-# X usuario es docente del curso Y para DocenteCurso, X usuario es estudiante del curso Y para Inscripcion.
 
 def requiere_login(f):
     @wraps(f)
